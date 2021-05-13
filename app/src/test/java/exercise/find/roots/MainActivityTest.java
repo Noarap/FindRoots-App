@@ -2,6 +2,7 @@ package exercise.find.roots;
 
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 
 import junit.framework.TestCase;
 
@@ -44,11 +45,22 @@ public class MainActivityTest extends TestCase {
     // find the edit-text and the button
     EditText inputEditText = mainActivity.findViewById(R.id.editTextInputNumber);
     Button button = mainActivity.findViewById(R.id.buttonCalculateRoots);
-
-    // test: insert input to the edit text and verify that the button is enabled
-    // TODO: implement
+    inputEditText.setText("5964");
+    assertTrue(button.isEnabled());
   }
+  @Test
+  public void when_userClickedOnCalaRoots_then_theProgressBarShouldBeEnabled(){
+    // create a MainActivity and let it think it's currently displayed on the screen
+    MainActivity mainActivity = Robolectric.buildActivity(MainActivity.class).create().visible().get();
 
+    // find the edit-text and the button
+    EditText inputEditText = mainActivity.findViewById(R.id.editTextInputNumber);
+    Button button = mainActivity.findViewById(R.id.buttonCalculateRoots);
+    ProgressBar progressBar = mainActivity.findViewById(R.id.progressBar);
+    inputEditText.setText("5964");
+    button.performClick();
+    assertTrue(progressBar.isShown());
+  }
   // TODO: add 1 or 2 more unit tests to the activity. so your "writing tests" skill won't get rusty.
   //  possible flows to unit-test:
   //  - when activity launches, "progress" starts hidden

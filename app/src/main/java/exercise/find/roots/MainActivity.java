@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -18,6 +19,7 @@ import androidx.appcompat.app.AppCompatActivity;
 public class MainActivity extends AppCompatActivity {
 
   private BroadcastReceiver broadcastReceiverForSuccess = null;
+  private BroadcastReceiver broadcastReceiverForFailure = null;
   // TODO: add any other fields to the activity as you want
 
 
@@ -44,7 +46,33 @@ public class MainActivity extends AppCompatActivity {
         // text did change
         String newText = editTextUserInput.getText().toString();
         // todo: check conditions to decide if button should be enabled/disabled (see spec below)
+        boolean isNum = newText.matches("\\d+");
+        if (isNum)
+        {
+          try
+          {
+            buttonCalculateRoots.setEnabled(Long.parseLong(newText) > 0);
+          }
+          catch (NumberFormatException exception)
+          {
+            buttonCalculateRoots.setEnabled(false);
+          }
+        }
+        else {
+          buttonCalculateRoots.setEnabled(false);
+        }
+
+//        boolean isNum = android.text.TextUtils.isDigitsOnly((CharSequence)newText);
+//        if (isNum)
+//        {
+//          buttonCalculateRoots.setEnabled(Long.parseLong(newText) > 0);
+//        }
+//        else
+//        {
+//          buttonCalculateRoots.setEnabled(false);
+//        }
       }
+
     });
 
     // set click-listener to the button
@@ -52,10 +80,14 @@ public class MainActivity extends AppCompatActivity {
       Intent intentToOpenService = new Intent(MainActivity.this, CalculateRootsService.class);
       String userInputString = editTextUserInput.getText().toString();
       // todo: check that `userInputString` is a number. handle bad input. convert `userInputString` to long
-      long userInputLong = 0; // todo this should be the converted string from the user
+      long userInputLong = Long.parseLong(userInputString); // todo this should be the converted string from the user
       intentToOpenService.putExtra("number_for_service", userInputLong);
       startService(intentToOpenService);
       // todo: set views states according to the spec (below)
+      buttonCalculateRoots.setEnabled(false);
+      editTextUserInput.setEnabled(false);
+      progressBar.setVisibility(View.VISIBLE);
+
     });
 
     // register a broadcast-receiver to handle action "found_roots"
@@ -71,6 +103,19 @@ public class MainActivity extends AppCompatActivity {
            - when creating an intent to open the new-activity, pass the roots as extras to the new-activity intent
              (see for example how did we pass an extra when starting the calculation-service)
          */
+        progressBar.setVisibility(View.GONE);
+        buttonCalculateRoots.setEnabled(true);
+        editTextUserInput.setEnabled(true);
+        editTextUserInput.setText("");
+
+        Intent newIntent = new Intent(MainActivity.this, SuccessActivity.class);
+        newIntent.putExtra("original_number",
+                incomingIntent.getLongExtra("original_number", 0));
+        newIntent.putExtra("root1", incomingIntent.getLongExtra("root1", 0));
+        newIntent.putExtra("root2", incomingIntent.getLongExtra("root2", 0));
+        newIntent.putExtra("time_until_give_up_seconds",
+                incomingIntent.getLongExtra("time_until_give_up_seconds", 0));
+        startActivity(newIntent);
       }
     };
     registerReceiver(broadcastReceiverForSuccess, new IntentFilter("found_roots"));
@@ -81,6 +126,22 @@ public class MainActivity extends AppCompatActivity {
      to show a Toast, use this code:
      `Toast.makeText(this, "text goes here", Toast.LENGTH_SHORT).show()`
      */
+    // register a broadcast-receiver to handle action "stopped_calculation"
+    broadcastReceiverForFailure = new BroadcastReceiver() {
+      @Override
+      public void onReceive(Context context, Intent incomingIntent) {
+        if (incomingIntent == null || !incomingIntent.getAction().equals("stopped_calculation")) return;
+
+        progressBar.setVisibility(View.GONE);
+        buttonCalculateRoots.setEnabled(true);
+        editTextUserInput.setEnabled(true);
+        editTextUserInput.setText("");
+        Toast.makeText(MainActivity.this, "calculation aborted after"
+                +incomingIntent.getLongExtra("time_until_give_up_seconds", 0)+
+                "seconds", Toast.LENGTH_SHORT).show();
+      }
+    };
+    registerReceiver(broadcastReceiverForFailure, new IntentFilter("stopped_calculation"));
   }
 
   @Override
@@ -88,18 +149,24 @@ public class MainActivity extends AppCompatActivity {
     super.onDestroy();
     // todo: remove ALL broadcast receivers we registered earlier in onCreate().
     //  to remove a registered receiver, call method `this.unregisterReceiver(<receiver-to-remove>)`
+    this.unregisterReceiver(broadcastReceiverForSuccess);
+    this.unregisterReceiver(broadcastReceiverForFailure);
   }
 
   @Override
   protected void onSaveInstanceState(@NonNull Bundle outState) {
     super.onSaveInstanceState(outState);
     // TODO: put relevant data into bundle as you see fit
+    EditText editText = findViewById(R.id.editTextInputNumber);
+    outState.putString("input", editText.getText().toString());
   }
 
   @Override
   protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
     super.onRestoreInstanceState(savedInstanceState);
     // TODO: load data from bundle and set screen state (see spec below)
+    EditText editText = findViewById(R.id.editTextInputNumber);
+    editText.setText(savedInstanceState.getString("input"));
   }
 }
 
@@ -140,7 +207,6 @@ when calculation is complete successfully:
 when calculation is aborted as it took too much time:
 * change states for the progress, edit-text and button as needed, so the screen can accept new input
 * show a toast "calculation aborted after X seconds"
-
 
 upon screen rotation (saveState && loadState) the new screen should show exactly the same state as the old screen. this means:
 * edit-text shows the same input

@@ -1,12 +1,15 @@
 package exercise.find.roots;
 
 import android.app.IntentService;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
+import static java.lang.Math.ceil;
+import static java.lang.Math.sqrt;
+
 public class CalculateRootsService extends IntentService {
-
-
   public CalculateRootsService() {
     super("CalculateRootsService");
   }
@@ -14,12 +17,54 @@ public class CalculateRootsService extends IntentService {
   @Override
   protected void onHandleIntent(Intent intent) {
     if (intent == null) return;
-    long timeStartMs = System.currentTimeMillis();
     long numberToCalculateRootsFor = intent.getLongExtra("number_for_service", 0);
+    Intent sendIntent = new Intent();
+    long i = 2;
+    long root1 = 0;
+    long root2 = 0;
+    long timeStartMs = System.currentTimeMillis();
+    while (i < ceil(sqrt(numberToCalculateRootsFor)))
+    {
+      if (numberToCalculateRootsFor % i == 0)
+      {
+        root1 = i;
+        root2 = numberToCalculateRootsFor/i;
+        break;
+      }
+      long curTime = System.currentTimeMillis() - timeStartMs;
+      if (curTime >= 20000)
+      {
+        sendIntent.setAction("stopped_calculations");
+        sendIntent.putExtra("original_number", numberToCalculateRootsFor);
+        sendIntent.putExtra("time_until_give_up_seconds", curTime/1000);
+        sendBroadcast(sendIntent);
+        return;
+      }
+      i++;
+    }
+
+    long time = System.currentTimeMillis() - timeStartMs;
+    if (root1 == 0 && root2 == 0)
+    {
+      sendIntent.setAction("found_roots");
+      sendIntent.putExtra("original_number", numberToCalculateRootsFor);
+      sendIntent.putExtra("root1", 1);
+      sendIntent.putExtra("root2", numberToCalculateRootsFor);
+      sendIntent.putExtra("time_until_give_up_seconds", time/1000);
+      sendBroadcast(sendIntent);
+      return;
+    }
     if (numberToCalculateRootsFor <= 0) {
       Log.e("CalculateRootsService", "can't calculate roots for non-positive input" + numberToCalculateRootsFor);
       return;
     }
+
+    sendIntent.setAction("found_roots");
+    sendIntent.putExtra("original_number", numberToCalculateRootsFor);
+    sendIntent.putExtra("root1", root1);
+    sendIntent.putExtra("root2", root2);
+    sendIntent.putExtra("time_until_give_up_seconds", time/1000);
+    sendBroadcast(sendIntent);
     /*
     TODO:
      calculate the roots.
@@ -42,4 +87,6 @@ public class CalculateRootsService extends IntentService {
 
      */
   }
+
+
 }
